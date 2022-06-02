@@ -1,112 +1,245 @@
+// Client.c 
+
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
 #define PORT 9999
-// Sending and receiving a simple message.
-int client_example_1(client_socket){
-    ssize_t sent_size;
-    char buffer[1024];  // Receiving the message into the buffer.
-    int received_size;
-    char message[] = "Hello from client";  // Message to send 
-(17-characters/bytes).
-    // Since client_socket is a File Descriptor, both "write" and "send" should 
-work.
-    // However, "send" is dedicated for sockets which gives you a fourth arguments 
-to set some socket options.
-//    sent_size = write(client_socket, message, strlen(message));
-    sent_size = send(client_socket, message, strlen(message), 0);
-    printf("Client: message sent with size %d bytes. Original message size = %d 
-bytes.\n", sent_size, strlen(message));
-    // Since client_socket is a File Descriptor, both "read" and "recv" should 
-work.
-    // However, "recv" is dedicated for sockets which gives you a fourth arguments 
-to set some socket options.
-//    received_size = read(client_socket, buffer, 1024);
-    received_size = recv(client_socket, buffer, 1024, 0);
-    printf("Client received '%s' with size = %i\n", buffer, received_size);
-    // Make sure to close the socket after you close the application.
-    close(client_socket);
-    return 0;
+#define MAXARGS 3
+
+
+
+// From the lect slides: open_clientfd; prob dont need this much
+
+// int open_clientfd(char *hostname, char *port){
+//   int clientfd;
+//   struct addrinfo hints, *listp, *p;
+//   memset(&hints, 0, sizeof(struct addrinfo));
+//   hints.ai_socktype = SOCK_STREAM;
+//   hints.ai_flags = AI_NUMERICSERV;
+//   hints.ai_flags |= AI_ADDRCONFIG;
+//   getadderinfo(hostname, port, &hints, &listp);
+
+//   for (p = listp; p; p = p->ai_next) {
+//     if ((clientfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
+//       continue;
+//     if (connect(clientfd, p->ai_addr, p->ai_adderlen) != -1)
+//       break;
+//     close(clientfd);
+//   }
+// }
+
+
+
+// establish connection:
+//int connect(int clientfd, SA *adder, socklen_t addreln) {}
+
+
+void tokenize(char *input, char *args[MAXARGS]){
+  int i = 0;
+  char *token = strtok(input, " \n");
+  do{
+    args[i] = token;
+    i++;
+  } while ((token = strtok(NULL, " \n")));
 }
-// Sending and receiving multiple messages message.
-int client_example_2(client_socket){
-    char message1[] = "aaa";
-    send(client_socket, message1, strlen(message1), 0);
-    sleep(1);
-    char message2[] = "bbbb";
-    send(client_socket, message2, strlen(message2), 0);
-    sleep(1);
-    char message3[] = "ccccc";
-    send(client_socket, message3, strlen(message3), 0);
-    // Make sure to close the socket after you close the application.
-    close(client_socket);
-    return 0;
+
+
+void pauseCmd(int length){
+  // use sleep? eg: sleep(length);
+  sleep(length);
+  //pid_t wait(length);
 }
-// Sending and receiving an entire file.
-int client_example_3(client_socket){
-    int received_size;
-    char destination_path[] = "/Local Directory/received_file.txt";  // Note how we
-don't have the original file name.
-    int chunk_size = 1000;
-    char file_chunk[chunk_size];
-//    int chunk_counter = 0;
-    FILE *fptr;
-    // Opening a new file in write-binary mode to write the received file bytes 
-into the disk using fptr.
-    fptr = fopen(destination_path,"wb");
-    // Keep receiving bytes until we receive the whole file.
-    while (1){
-        bzero(file_chunk, chunk_size);
-//        memset(&file_chunk, 0, chunk_size);
-        // Receiving bytes from the socket.
-        received_size = recv(client_socket, file_chunk, chunk_size, 0);
-        printf("Client: received %i bytes from server.\n", received_size);
-        // The server has closed the connection.
-        // Note: the server will only close the connection when the application 
-terminates.
-        if (received_size == 0){
-            close(client_socket);
-            fclose(fptr);
-            break;
-        }
-        // Writing the received bytes into disk.
-        fwrite(&file_chunk, sizeof(char), received_size, fptr);
-//        printf("Client: file_chunk data is:\n%s\n\n", file_chunk);
+
+
+void appendCmd(char* file_name){
+  /*
+  // open in append mode
+  // char destination[] = '/Remote Directory/' + file_name?
+  char* path = "\\RemoteDirectory\\\n";
+  strcat(path, file_name);
+  FILE *fptr;
+  fptr = fopen(path, "wb");
+  //int fd;
+  //fd = popen(file_name,O_RDWR|O_APPEND);
+  if (fptr == NULL)
+  {
+    printf("FILE [");
+    printf("%s", file_name);
+    printf("] could not be found in driectory\n");
+    return;
+  }
+  while(1)
+    {
+      printf("Appending> ");
+      char input[500];
+      
+      fgets(input, 500, stdin); 
+      if (strcmp(input, "close") == 0){
+        break;
+      }
+      else{
+        fwrite(input, 1, sizeof(input), fptr);
+      }
     }
+  */
 }
-// client_example_4:
-// sending and receiving multiple files along with their file names.
-// You have to do this yourself.
-// Hint: you may want to attach a header to each file you send.
-int start_client()
-{
-    int client_socket;
-    struct sockaddr_in serv_addr;
-    client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    if (client_socket < 0) {
-        printf("\n Socket creation error \n");
-        return -1;
+
+
+void uploadCmd(char* filename){ 
+  // see example3 
+}
+ 
+
+void downloadCmd(char *filename, int client_socket){
+  // see example3
+  int received_size;
+  char* path = "\\RemoteDirectory\\\n"; // idk if thats the right way to do the \ in strings but it stopped giving an error lol
+  // path + filename?
+  strcat(path, filename);
+  //char destination_path[] = path; // do we need destination path if we can just use path?
+  int chunk_size = 1000;
+  char file_chunk[chunk_size];
+  FILE *fptr;
+  fptr = fopen(path, "wb");
+  while(1){
+    bzero(file_chunk, chunk_size);
+    received_size = recv(client_socket, file_chunk, chunk_size, 0);
+    if (received_size == 0){
+      close(client_socket); // wait do we close socket here or after quit?
+      fclose(fptr);
+      break;
     }
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-    // The server IP address should be supplied as an argument when running the 
-application.
-    int addr_status = inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
-    if (addr_status <= 0) {
-        printf("\nInvalid address/ Address not supported \n");
-        return -1;
+    fwrite(&file_chunk, sizeof(char), received_size, fptr);
+  }
+}
+
+
+void deleteCmd(char* filename){
+  /*
+  // remove function
+  // char destination[] = '/Remote Directory/' + file_name?
+  int r = remove(filename);
+
+  if(r == 0) {
+    printf("File deleted successfully");
+  } else {
+    printf("File [");
+    printf(filename);
+    printf("] could not be found in remote directory.\n");
     }
-    int connect_status = connect(client_socket, (struct sockaddr*)&serv_addr, 
-sizeof(serv_addr));
-    if (connect_status < 0) {
-        printf("\nConnection Failed \n");
-        return -1;
+  */
+}
+
+
+
+void syncheckCmd(){
+  // confusing TBD
+  // hash function
+}
+
+
+
+void execute(char* argv[MAXARGS], int client_socket){
+  char *command = argv[0];
+  // pause
+  if (strcmp(command, "pause") == 0)
+    pauseCmd(atoi(argv[1]));
+  // append
+  else if (strcmp(command, "append") == 0)
+    appendCmd(argv[1]);
+  // upload
+  else if (strcmp(command, "uplaod") == 0)
+    uploadCmd(argv[1]);
+  // download
+  else if (strcmp(command, "download") == 0)
+    downloadCmd(argv[1], client_socket);
+  // delete
+  else if (strcmp(command, "delete") == 0)
+    deleteCmd(argv[1]);
+  // syncheck
+  else if (strcmp(command, "syncheck") == 0)
+    syncheckCmd();
+}
+
+
+void loop(char* file, char* IP, int client_socket) {
+  char input[500];
+  char *args[MAXARGS];
+  do {
+    printf("> ");
+    fgets(input, 500, stdin); // was fgets(input, 500, file); why file and not stdin?
+    // arent we taking a file in the directory and read from that? not sure though
+    // so maybe not enough fgets but read file?
+    tokenize((char*)input, args);
+    if (strcmp(args[0], "quit") == 0){
+      exit(0);
     }
-    ///////////// Start sending and receiving process //////////////
-    client_example_1(client_socket);
-//    client_example_2(client_socket);
-//    client_example_3(client_socket);
-    return 0;
+    execute(args, client_socket);
+  } while (1);
+}
+
+
+int main() {
+
+  /*
+  // Create socket
+  int sock;
+  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+  {
+    printf("\n Socket creation error \n");
+    return -1;
+  }
+
+  // Connect
+  struct sockaddr_in serv_addr;
+  memset(&serv_addr, '0', sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(PORT);
+  if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+  {
+    printf("\nConnection Failed \n");
+    return -1;
+  }
+  */
+
+  // read from terminal to know which file we reading
+  // to be change later into reading straight from "Remote Directory" folder
+
+  int client_socket;
+  struct sockaddr_in serv_addr;
+  client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+  if (client_socket < 0){
+    printf("\n Socket creation error \n");
+    return -1;
+  }
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port = htons(PORT);
+  int addr_status = inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+  if (addr_status <= 0){
+    printf("\nInvalid address/ Adress not supported \n");
+    return -1;
+  }
+  int connect_status = connect(client_socket, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+  if (connect_status < 0){
+    printf("\nConnection Failed\n");
+    return -1;
+  }
+  
+
+  char input[500];
+  char *args[MAXARGS];
+  
+  fgets(input, 500, stdin);
+  tokenize((char*)input, args);
+  char* file = args[0]; 
+  char* IP = args[1];
+  
+  printf("Welcome to ICS53 Online Cloud Storage.");
+  
+  loop(file, IP, client_socket);
+  return 0;
 }
